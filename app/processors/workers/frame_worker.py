@@ -209,21 +209,38 @@ class FrameWorker(threading.Thread):
         # Profile Mode: Detect and adjust for profile faces
         if parameters.get('ProfileModeToggle', False):
             profile_side_selection = parameters.get('ProfileSideSelection', 'Auto')
-            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
 
             if profile_side_selection == 'Auto':
-                # Auto-detect profile orientation
-                profile_side = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
+                # Auto-detect profile orientation with angle estimation
+                profile_side, angle, confidence = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
             elif profile_side_selection == 'Left Profile':
                 profile_side = 'left_profile'
+                angle = 75.0  # Assume strong profile for manual selection
+                confidence = 1.0
             elif profile_side_selection == 'Right Profile':
                 profile_side = 'right_profile'
+                angle = 75.0
+                confidence = 1.0
+            elif profile_side_selection == 'Three-Quarter Left':
+                profile_side = 'three_quarter_left'
+                angle = 35.0  # Typical three-quarter angle
+                confidence = 1.0
+            elif profile_side_selection == 'Three-Quarter Right':
+                profile_side = 'three_quarter_right'
+                angle = 35.0
+                confidence = 1.0
             else:
                 profile_side = 'frontal'
+                angle = 0.0
+                confidence = 1.0
 
-            # Apply profile-specific keypoint adjustments
-            if profile_side in ['left_profile', 'right_profile']:
-                kps_5 = profile_util.adjust_profile_keypoints(kps_5, profile_side, enhancement)
+            # Calculate adaptive enhancement based on angle
+            enhancement = profile_util.calculate_adaptive_enhancement(angle, user_enhancement, profile_side)
+
+            # Apply profile-specific keypoint adjustments for non-frontal faces
+            if profile_side != 'frontal':
+                kps_5 = profile_util.adjust_profile_keypoints(kps_5, profile_side, enhancement, angle)
 
         # Change the ref points
         if parameters['FaceAdjEnableToggle']:
@@ -570,15 +587,15 @@ class FrameWorker(threading.Thread):
         swap = t512(output)   
         return swap, prev_face
     
-    def get_border_mask(self, parameters, profile_side=None):
+    def get_border_mask(self, parameters, profile_side=None, angle=0.0):
         # Create border mask
         border_mask = torch.ones((128, 128), dtype=torch.float32, device=self.models_processor.device)
         border_mask = torch.unsqueeze(border_mask,0)
 
         # Apply profile-specific border adjustments if in profile mode
-        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
+        if parameters.get('ProfileModeToggle', False) and profile_side and profile_side != 'frontal':
             enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
-            border_adjustments = profile_util.get_profile_border_adjustments(profile_side, enhancement)
+            border_adjustments = profile_util.get_profile_border_adjustments(profile_side, enhancement, angle)
             top = border_adjustments['BorderTopSlider']
             left = border_adjustments['BorderLeftSlider']
             right = 128 - border_adjustments['BorderRightSlider']
@@ -609,16 +626,33 @@ class FrameWorker(threading.Thread):
 
         # Detect profile orientation if Profile Mode is enabled
         profile_side = None
+        profile_angle = 0.0
+        profile_confidence = 1.0
         if parameters.get('ProfileModeToggle', False):
             profile_side_selection = parameters.get('ProfileSideSelection', 'Auto')
             if profile_side_selection == 'Auto':
-                profile_side = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
+                # Auto-detect with angle estimation
+                profile_side, profile_angle, profile_confidence = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
             elif profile_side_selection == 'Left Profile':
                 profile_side = 'left_profile'
+                profile_angle = 75.0  # Assume strong profile for manual selection
+                profile_confidence = 1.0
             elif profile_side_selection == 'Right Profile':
                 profile_side = 'right_profile'
+                profile_angle = 75.0
+                profile_confidence = 1.0
+            elif profile_side_selection == 'Three-Quarter Left':
+                profile_side = 'three_quarter_left'
+                profile_angle = 35.0  # Typical three-quarter angle
+                profile_confidence = 1.0
+            elif profile_side_selection == 'Three-Quarter Right':
+                profile_side = 'three_quarter_right'
+                profile_angle = 35.0
+                profile_confidence = 1.0
             else:
                 profile_side = 'frontal'
+                profile_angle = 0.0
+                profile_confidence = 1.0
 
         tform = self.get_face_similarity_tform(swapper_model, kps_5)
 
@@ -670,16 +704,18 @@ class FrameWorker(threading.Thread):
                 prev_face = torch.mul(prev_face, 1-alpha)
                 swap = torch.add(swap, prev_face)
 
-        border_mask = self.get_border_mask(parameters, profile_side)
+        border_mask = self.get_border_mask(parameters, profile_side, profile_angle)
 
         # Create image mask
         swap_mask = torch.ones((128, 128), dtype=torch.float32, device=self.models_processor.device)
         swap_mask = torch.unsqueeze(swap_mask,0)
 
         # Apply profile-specific mask if in profile mode
-        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
-            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
-            profile_mask = profile_util.create_profile_mask(profile_side, enhancement, self.models_processor.device)
+        if parameters.get('ProfileModeToggle', False) and profile_side and profile_side != 'frontal':
+            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            # Calculate adaptive enhancement based on angle
+            enhancement = profile_util.calculate_adaptive_enhancement(profile_angle, user_enhancement, profile_side)
+            profile_mask = profile_util.create_profile_mask(profile_side, enhancement, self.models_processor.device, profile_angle)
             swap_mask = torch.mul(swap_mask, profile_mask)
         
         # Expression Restorer
@@ -790,9 +826,11 @@ class FrameWorker(threading.Thread):
                 swap = swap.permute(2, 0, 1)
 
         # Apply profile-specific color correction if in profile mode
-        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
-            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
-            swap = profile_util.apply_profile_color_correction(swap, original_face_512, profile_side, enhancement)
+        if parameters.get('ProfileModeToggle', False) and profile_side and profile_side != 'frontal':
+            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            # Calculate adaptive enhancement based on angle
+            enhancement = profile_util.calculate_adaptive_enhancement(profile_angle, user_enhancement, profile_side)
+            swap = profile_util.apply_profile_color_correction(swap, original_face_512, profile_side, enhancement, profile_angle)
 
         if parameters['JPEGCompressionEnableToggle']:
             try:

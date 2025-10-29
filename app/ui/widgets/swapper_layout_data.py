@@ -52,16 +52,16 @@ SWAPPER_LAYOUT_DATA: LayoutDictTypes = {
             'level': 1,
             'label': 'Profile Mode',
             'default': False,
-            'help': 'Enable profile face swapping mode. Use this when swapping faces that are shown in profile (side view) rather than facing forward. When enabled, use a source image that is also in profile view for best results.',
+            'help': 'Enable profile face swapping mode with adaptive enhancement. Supports frontal (0°), three-quarter (15-45°), and full profile (45-90°) faces. Auto-detects face angle and adapts processing accordingly. Use a source image with similar orientation for best results.',
         },
         'ProfileSideSelection': {
             'level': 2,
             'label': 'Profile Side',
-            'options': ['Auto', 'Left Profile', 'Right Profile'],
+            'options': ['Auto', 'Left Profile', 'Right Profile', 'Three-Quarter Left', 'Three-Quarter Right'],
             'default': 'Auto',
             'parentToggle': 'ProfileModeToggle',
             'requiredToggleValue': True,
-            'help': 'Specify which side the profile is facing. Auto will attempt to detect the profile direction automatically.',
+            'help': 'Specify the face orientation. Auto detects angle (0-90°) and classifies as frontal/three-quarter/profile automatically. Manual selection forces specific orientation with assumed 75° angle for profiles and 35° for three-quarter views.',
         },
         'ProfileEnhancementSlider': {
             'level': 2,
@@ -72,7 +72,7 @@ SWAPPER_LAYOUT_DATA: LayoutDictTypes = {
             'step': 5,
             'parentToggle': 'ProfileModeToggle',
             'requiredToggleValue': True,
-            'help': 'Adjusts the strength of profile-specific enhancements. Higher values apply more aggressive profile alignment and blending.',
+            'help': 'Base enhancement strength (0-100). Automatically scales based on detected angle: frontal faces get 30% strength, three-quarter 50-75%, profiles 90-100%. This creates optimal adjustments for any face angle.',
         }
     },
     'Face Landmarks Correction': {
