@@ -47,6 +47,32 @@ SWAPPER_LAYOUT_DATA: LayoutDictTypes = {
             'parentSelection': 'SwapModelSelection',
             'requiredSelectionValue': 'DeepFaceLive (DFM)',
             'help': 'RCT Color Transfer for DFM Models',
+        },
+        'ProfileModeToggle': {
+            'level': 1,
+            'label': 'Profile Mode',
+            'default': False,
+            'help': 'Enable profile face swapping mode. Use this when swapping faces that are shown in profile (side view) rather than facing forward. When enabled, use a source image that is also in profile view for best results.',
+        },
+        'ProfileSideSelection': {
+            'level': 2,
+            'label': 'Profile Side',
+            'options': ['Auto', 'Left Profile', 'Right Profile'],
+            'default': 'Auto',
+            'parentToggle': 'ProfileModeToggle',
+            'requiredToggleValue': True,
+            'help': 'Specify which side the profile is facing. Auto will attempt to detect the profile direction automatically.',
+        },
+        'ProfileEnhancementSlider': {
+            'level': 2,
+            'label': 'Profile Enhancement',
+            'min_value': '0',
+            'max_value': '100',
+            'default': '50',
+            'step': 5,
+            'parentToggle': 'ProfileModeToggle',
+            'requiredToggleValue': True,
+            'help': 'Adjusts the strength of profile-specific enhancements. Higher values apply more aggressive profile alignment and blending.',
         }
     },
     'Face Landmarks Correction': {

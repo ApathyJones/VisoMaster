@@ -13,6 +13,7 @@ from torchvision import transforms
 import numpy as np
 
 from app.processors.utils import faceutil
+from app.processors.utils import profile_util
 import app.ui.widgets.actions.common_actions as common_widget_actions
 from app.ui.widgets.actions import video_control_actions
 from app.helpers.miscellaneous import t512,t384,t256,t128, ParametersDict
@@ -205,6 +206,25 @@ class FrameWorker(threading.Thread):
         return img[..., ::-1]
     
     def keypoints_adjustments(self, kps_5: np.ndarray, parameters: dict) -> np.ndarray:
+        # Profile Mode: Detect and adjust for profile faces
+        if parameters.get('ProfileModeToggle', False):
+            profile_side_selection = parameters.get('ProfileSideSelection', 'Auto')
+            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+
+            if profile_side_selection == 'Auto':
+                # Auto-detect profile orientation
+                profile_side = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
+            elif profile_side_selection == 'Left Profile':
+                profile_side = 'left_profile'
+            elif profile_side_selection == 'Right Profile':
+                profile_side = 'right_profile'
+            else:
+                profile_side = 'frontal'
+
+            # Apply profile-specific keypoint adjustments
+            if profile_side in ['left_profile', 'right_profile']:
+                kps_5 = profile_util.adjust_profile_keypoints(kps_5, profile_side, enhancement)
+
         # Change the ref points
         if parameters['FaceAdjEnableToggle']:
             kps_5[:,0] += parameters['KpsXSlider']
@@ -550,16 +570,25 @@ class FrameWorker(threading.Thread):
         swap = t512(output)   
         return swap, prev_face
     
-    def get_border_mask(self, parameters):
+    def get_border_mask(self, parameters, profile_side=None):
         # Create border mask
         border_mask = torch.ones((128, 128), dtype=torch.float32, device=self.models_processor.device)
         border_mask = torch.unsqueeze(border_mask,0)
 
-        # if parameters['BorderState']:
-        top = parameters['BorderTopSlider']
-        left = parameters['BorderLeftSlider']
-        right = 128 - parameters['BorderRightSlider']
-        bottom = 128 - parameters['BorderBottomSlider']
+        # Apply profile-specific border adjustments if in profile mode
+        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
+            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            border_adjustments = profile_util.get_profile_border_adjustments(profile_side, enhancement)
+            top = border_adjustments['BorderTopSlider']
+            left = border_adjustments['BorderLeftSlider']
+            right = 128 - border_adjustments['BorderRightSlider']
+            bottom = 128 - border_adjustments['BorderBottomSlider']
+        else:
+            # Use default border parameters
+            top = parameters['BorderTopSlider']
+            left = parameters['BorderLeftSlider']
+            right = 128 - parameters['BorderRightSlider']
+            bottom = 128 - parameters['BorderBottomSlider']
 
         border_mask[:, :top, :] = 0
         border_mask[:, bottom:, :] = 0
@@ -577,6 +606,19 @@ class FrameWorker(threading.Thread):
         control = control or {}
         # parameters = self.parameters.copy()
         swapper_model = parameters['SwapModelSelection']
+
+        # Detect profile orientation if Profile Mode is enabled
+        profile_side = None
+        if parameters.get('ProfileModeToggle', False):
+            profile_side_selection = parameters.get('ProfileSideSelection', 'Auto')
+            if profile_side_selection == 'Auto':
+                profile_side = profile_util.detect_profile_orientation(kps_5, threshold=0.3)
+            elif profile_side_selection == 'Left Profile':
+                profile_side = 'left_profile'
+            elif profile_side_selection == 'Right Profile':
+                profile_side = 'right_profile'
+            else:
+                profile_side = 'frontal'
 
         tform = self.get_face_similarity_tform(swapper_model, kps_5)
 
@@ -628,11 +670,17 @@ class FrameWorker(threading.Thread):
                 prev_face = torch.mul(prev_face, 1-alpha)
                 swap = torch.add(swap, prev_face)
 
-        border_mask = self.get_border_mask(parameters)
+        border_mask = self.get_border_mask(parameters, profile_side)
 
         # Create image mask
         swap_mask = torch.ones((128, 128), dtype=torch.float32, device=self.models_processor.device)
         swap_mask = torch.unsqueeze(swap_mask,0)
+
+        # Apply profile-specific mask if in profile mode
+        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
+            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            profile_mask = profile_util.create_profile_mask(profile_side, enhancement, self.models_processor.device)
+            swap_mask = torch.mul(swap_mask, profile_mask)
         
         # Expression Restorer
         if parameters['FaceExpressionEnableToggle']:
@@ -740,6 +788,11 @@ class FrameWorker(threading.Thread):
                 swap = swap + parameters['ColorNoiseDecimalSlider']*torch.randn(512, 512, 3, device=self.models_processor.device)
                 swap = torch.clamp(swap, 0, 255)
                 swap = swap.permute(2, 0, 1)
+
+        # Apply profile-specific color correction if in profile mode
+        if parameters.get('ProfileModeToggle', False) and profile_side in ['left_profile', 'right_profile']:
+            enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            swap = profile_util.apply_profile_color_correction(swap, original_face_512, profile_side, enhancement)
 
         if parameters['JPEGCompressionEnableToggle']:
             try:
