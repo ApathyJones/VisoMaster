@@ -667,9 +667,9 @@ class FrameWorker(threading.Thread):
 
         tform = self.get_face_similarity_tform(swapper_model, kps_5)
 
-        # Grab 512 face from image and create 256 and 128 copys
-        original_face_512, original_face_384, original_face_256, original_face_128 = self.get_transformed_and_scaled_faces(tform, img)
-        original_faces = (original_face_512, original_face_384, original_face_256, original_face_128)
+        # Grab 512 face from image and create scaled versions (1024, 384, 256, 128)
+        original_face_1024, original_face_512, original_face_384, original_face_256, original_face_128 = self.get_transformed_and_scaled_faces(tform, img)
+        original_faces = (original_face_1024, original_face_512, original_face_384, original_face_256, original_face_128)
         dim=1
         if (s_e is not None and len(s_e) > 0) or (swapper_model == 'DeepFaceLive (DFM)' and dfm_model):
 
