@@ -440,7 +440,7 @@ class FrameWorker(threading.Thread):
                 dim = 4
                 input_face_affined = original_face_512
             elif parameters['SwapperResSelection'] == '1024':
-                dim = 5
+                dim = 8
                 input_face_affined = original_face_1024
 
         elif swapper_model in ('InStyleSwapper256 Version A', 'InStyleSwapper256 Version B', 'InStyleSwapper256 Version C'):
