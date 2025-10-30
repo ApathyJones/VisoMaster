@@ -16,7 +16,7 @@ from app.processors.utils import faceutil
 from app.processors.utils import profile_util
 import app.ui.widgets.actions.common_actions as common_widget_actions
 from app.ui.widgets.actions import video_control_actions
-from app.helpers.miscellaneous import t512,t384,t256,t128, ParametersDict
+from app.helpers.miscellaneous import t1024,t512,t384,t256,t128, ParametersDict
 
 if TYPE_CHECKING:
     from app.ui.main_ui import MainWindow
@@ -407,16 +407,17 @@ class FrameWorker(threading.Thread):
         return tform
       
     def get_transformed_and_scaled_faces(self, tform, img):
-        # Grab 512 face from image and create 256 and 128 copys
+        # Grab 512 face from image and create scaled versions (1024, 384, 256, 128)
         original_face_512 = v2.functional.affine(img, tform.rotation*57.2958, (tform.translation[0], tform.translation[1]) , tform.scale, 0, center = (0,0), interpolation=v2.InterpolationMode.BILINEAR )
         original_face_512 = v2.functional.crop(original_face_512, 0,0, 512, 512)# 3, 512, 512
+        original_face_1024 = t1024(original_face_512)
         original_face_384 = t384(original_face_512)
         original_face_256 = t256(original_face_512)
         original_face_128 = t128(original_face_256)
-        return original_face_512, original_face_384, original_face_256, original_face_128
+        return original_face_1024, original_face_512, original_face_384, original_face_256, original_face_128
     
     def get_affined_face_dim_and_swapping_latents(self, original_faces: tuple, swapper_model, dfm_model, s_e, t_e, parameters,):
-        original_face_512, original_face_384, original_face_256, original_face_128 = original_faces
+        original_face_1024, original_face_512, original_face_384, original_face_256, original_face_128 = original_faces
         if swapper_model == 'Inswapper128':
             self.models_processor.load_inswapper_iss_emap('Inswapper128')
             latent = torch.from_numpy(self.models_processor.calc_inswapper_latent(s_e)).float().to(self.models_processor.device)
@@ -438,6 +439,9 @@ class FrameWorker(threading.Thread):
             elif parameters['SwapperResSelection'] == '512':
                 dim = 4
                 input_face_affined = original_face_512
+            elif parameters['SwapperResSelection'] == '1024':
+                dim = 5
+                input_face_affined = original_face_1024
 
         elif swapper_model in ('InStyleSwapper256 Version A', 'InStyleSwapper256 Version B', 'InStyleSwapper256 Version C'):
             version = swapper_model[-1]
