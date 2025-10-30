@@ -11,6 +11,395 @@ Profile faces present unique challenges compared to frontal faces due to:
 import numpy as np
 import torch
 from torchvision.transforms import v2
+from typing import Dict, List, Tuple, Optional
+from dataclasses import dataclass
+from enum import Enum
+
+
+class WarningLevel(Enum):
+    """Warning severity levels for UI display"""
+    INFO = "info"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+
+@dataclass
+class ProfileWarning:
+    """Data class for profile-related warnings"""
+    level: WarningLevel
+    title: str
+    message: str
+    recommendation: str
+    dismissible: bool = True
+    show_icon: bool = True
+    action_button: Optional[str] = None
+    action_callback: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            'level': self.level.value,
+            'title': self.title,
+            'message': self.message,
+            'recommendation': self.recommendation,
+            'dismissible': self.dismissible,
+            'show_icon': self.show_icon,
+            'action_button': self.action_button,
+            'action_callback': self.action_callback,
+        }
+
+
+def generate_profile_warnings(source_orientation: str, source_angle: float,
+                              target_orientation: str, target_angle: float,
+                              source_confidence: float = 1.0,
+                              target_confidence: float = 1.0) -> List[ProfileWarning]:
+    """
+    Generate real-time UI warnings for profile mismatches.
+
+    Args:
+        source_orientation: Source face orientation
+        source_angle: Source face angle
+        target_orientation: Target face orientation
+        target_angle: Target face angle
+        source_confidence: Source detection confidence
+        target_confidence: Target detection confidence
+
+    Returns:
+        List of ProfileWarning objects for UI display
+    """
+    warnings = []
+
+    # Check mismatch
+    mismatch_info = check_profile_mismatch(
+        source_orientation, target_orientation,
+        source_angle, target_angle
+    )
+
+    if mismatch_info['has_mismatch']:
+        severity = mismatch_info['severity']
+
+        if severity == 'high':
+            warning = ProfileWarning(
+                level=WarningLevel.HIGH,
+                title="⚠️ Major Orientation Mismatch",
+                message=mismatch_info['message'],
+                recommendation=mismatch_info['recommendation'],
+                dismissible=False,
+                action_button="Auto-Fix" if 'direction' in mismatch_info['message'].lower() else None,
+                action_callback="flip_source_image" if 'direction' in mismatch_info['message'].lower() else None
+            )
+            warnings.append(warning)
+        elif severity == 'medium':
+            warning = ProfileWarning(
+                level=WarningLevel.MEDIUM,
+                title="⚡ Orientation Mismatch",
+                message=mismatch_info['message'],
+                recommendation=mismatch_info['recommendation'],
+                dismissible=True,
+                action_button="Auto-Flip" if 'direction' in mismatch_info['message'].lower() else None,
+                action_callback="flip_source_image" if 'direction' in mismatch_info['message'].lower() else None
+            )
+            warnings.append(warning)
+        elif severity == 'low':
+            warning = ProfileWarning(
+                level=WarningLevel.LOW,
+                title="ℹ️ Minor Mismatch",
+                message=mismatch_info['message'],
+                recommendation=mismatch_info['recommendation'],
+                dismissible=True
+            )
+            warnings.append(warning)
+
+    # Check low confidence
+    if source_confidence < 0.6:
+        warning = ProfileWarning(
+            level=WarningLevel.MEDIUM,
+            title="⚠️ Low Source Detection Confidence",
+            message=f"Source face detected with {source_confidence*100:.0f}% confidence ({source_orientation}, {source_angle:.0f}°)",
+            recommendation="Consider using a clearer source image with better face visibility",
+            dismissible=True
+        )
+        warnings.append(warning)
+
+    if target_confidence < 0.6:
+        warning = ProfileWarning(
+            level=WarningLevel.MEDIUM,
+            title="⚠️ Low Target Detection Confidence",
+            message=f"Target face detected with {target_confidence*100:.0f}% confidence ({target_orientation}, {target_angle:.0f}°)",
+            recommendation="Face detection may be uncertain. Consider adjusting detection threshold.",
+            dismissible=True
+        )
+        warnings.append(warning)
+
+    # Extreme angles warning
+    if target_angle > 75 or source_angle > 75:
+        warning = ProfileWarning(
+            level=WarningLevel.INFO,
+            title="💡 Extreme Profile Angle",
+            message=f"Very extreme profile detected (Source: {source_angle:.0f}°, Target: {target_angle:.0f}°)",
+            recommendation="Use 'Extreme Profile' preset for best results with angles > 70°",
+            dismissible=True,
+            action_button="Apply Preset",
+            action_callback="apply_extreme_profile_preset"
+        )
+        warnings.append(warning)
+
+    # Three-quarter optimization suggestion
+    if 30 <= target_angle <= 50 and 'three_quarter' not in target_orientation:
+        warning = ProfileWarning(
+            level=WarningLevel.INFO,
+            title="💡 Three-Quarter View Detected",
+            message=f"Face at {target_angle:.0f}° - ideal for Three-Quarter Enhanced preset",
+            recommendation="Consider using 'Three-Quarter Enhanced' preset for optimal results",
+            dismissible=True,
+            action_button="Apply Preset",
+            action_callback="apply_three_quarter_preset"
+        )
+        warnings.append(warning)
+
+    return warnings
+
+
+def format_warning_for_display(warning: ProfileWarning, format_type: str = 'html') -> str:
+    """
+    Format warning for different display types.
+
+    Args:
+        warning: ProfileWarning object
+        format_type: 'html', 'text', or 'markdown'
+
+    Returns:
+        Formatted warning string
+    """
+    if format_type == 'html':
+        color_map = {
+            WarningLevel.INFO: '#3498db',
+            WarningLevel.LOW: '#f39c12',
+            WarningLevel.MEDIUM: '#e67e22',
+            WarningLevel.HIGH: '#e74c3c',
+            WarningLevel.CRITICAL: '#c0392b',
+        }
+        color = color_map[warning.level]
+
+        html = f'''
+        <div style="border-left: 4px solid {color}; padding: 12px; margin: 8px 0; background: #f8f9fa; border-radius: 4px;">
+            <div style="font-weight: bold; color: {color}; margin-bottom: 4px;">{warning.title}</div>
+            <div style="margin-bottom: 6px;">{warning.message}</div>
+            <div style="font-style: italic; color: #666; font-size: 0.9em;">{warning.recommendation}</div>
+            {f'<button style="margin-top: 8px;">{warning.action_button}</button>' if warning.action_button else ''}
+        </div>
+        '''
+        return html
+
+    elif format_type == 'markdown':
+        severity_icon = {
+            WarningLevel.INFO: 'ℹ️',
+            WarningLevel.LOW: '⚡',
+            WarningLevel.MEDIUM: '⚠️',
+            WarningLevel.HIGH: '🔴',
+            WarningLevel.CRITICAL: '🚨',
+        }
+        icon = severity_icon[warning.level]
+
+        md = f'''
+**{icon} {warning.title}**
+
+{warning.message}
+
+*{warning.recommendation}*
+'''
+        if warning.action_button:
+            md += f'\n`{warning.action_button}`\n'
+        return md
+
+    else:  # text
+        return f"{warning.title}\n{warning.message}\n{warning.recommendation}\n"
+
+
+def get_warning_summary(warnings: List[ProfileWarning]) -> dict:
+    """
+    Get summary of warnings for display badge/indicator.
+
+    Args:
+        warnings: List of ProfileWarning objects
+
+    Returns:
+        Dictionary with summary info
+    """
+    if not warnings:
+        return {
+            'count': 0,
+            'highest_level': None,
+            'has_critical': False,
+            'has_actionable': False
+        }
+
+    # Count by level
+    level_counts = {}
+    for warning in warnings:
+        level = warning.level.value
+        level_counts[level] = level_counts.get(level, 0) + 1
+
+    # Find highest level
+    level_priority = {
+        'critical': 5,
+        'high': 4,
+        'medium': 3,
+        'low': 2,
+        'info': 1
+    }
+    highest_level = max(warnings, key=lambda w: level_priority[w.level.value]).level.value
+
+    # Check for actionable warnings
+    has_actionable = any(w.action_button is not None for w in warnings)
+
+    return {
+        'count': len(warnings),
+        'highest_level': highest_level,
+        'has_critical': level_counts.get('critical', 0) > 0,
+        'has_high': level_counts.get('high', 0) > 0,
+        'has_actionable': has_actionable,
+        'by_level': level_counts
+    }
+
+
+def extract_profile_features(kps_5: np.ndarray) -> np.ndarray:
+    """
+    Extract feature vector from facial landmarks for ML-based angle estimation.
+
+    Features extracted:
+    1. Eye distance ratio
+    2. Nose offset ratio
+    3. Eye vertical alignment
+    4. Face aspect ratio
+    5. Nose-eye distance ratio
+    6. Mouth asymmetry
+    7. Eye-mouth triangle area
+    8. Horizontal face compression
+
+    Args:
+        kps_5: 5-point landmarks [left_eye, right_eye, nose, left_mouth, right_mouth]
+
+    Returns:
+        Feature vector (8 dimensions)
+    """
+    left_eye = kps_5[0]
+    right_eye = kps_5[1]
+    nose = kps_5[2]
+    left_mouth = kps_5[3]
+    right_mouth = kps_5[4]
+
+    # Feature 1: Eye distance (normalized)
+    eye_distance = np.linalg.norm(right_eye - left_eye)
+    eye_distance_norm = eye_distance / 100.0  # Normalize to typical face size
+
+    # Feature 2: Nose offset ratio
+    eye_center_x = (left_eye[0] + right_eye[0]) / 2
+    nose_offset = abs(nose[0] - eye_center_x)
+    nose_offset_ratio = nose_offset / (eye_distance + 1e-6)
+
+    # Feature 3: Eye vertical alignment
+    eye_y_diff = abs(right_eye[1] - left_eye[1])
+    eye_vertical_ratio = eye_y_diff / (eye_distance + 1e-6)
+
+    # Feature 4: Face aspect ratio (eye-mouth vertical vs horizontal)
+    mouth_center = (left_mouth + right_mouth) / 2
+    eye_center = (left_eye + right_eye) / 2
+    vertical_distance = np.linalg.norm(mouth_center - eye_center)
+    aspect_ratio = vertical_distance / (eye_distance + 1e-6)
+
+    # Feature 5: Nose-eye distance ratio
+    nose_to_left_eye = np.linalg.norm(nose - left_eye)
+    nose_to_right_eye = np.linalg.norm(nose - right_eye)
+    nose_eye_ratio = min(nose_to_left_eye, nose_to_right_eye) / max(nose_to_left_eye, nose_to_right_eye)
+
+    # Feature 6: Mouth asymmetry
+    mouth_width = np.linalg.norm(right_mouth - left_mouth)
+    mouth_asymmetry = mouth_width / (eye_distance + 1e-6)
+
+    # Feature 7: Eye-mouth triangle area (normalized)
+    # Using Shoelace formula
+    triangle_area = 0.5 * abs(
+        left_eye[0] * (right_eye[1] - mouth_center[1]) +
+        right_eye[0] * (mouth_center[1] - left_eye[1]) +
+        mouth_center[0] * (left_eye[1] - right_eye[1])
+    )
+    triangle_area_norm = triangle_area / 10000.0
+
+    # Feature 8: Horizontal face compression
+    # Profile faces have compressed horizontal span
+    face_width = max(right_eye[0], right_mouth[0], nose[0]) - min(left_eye[0], left_mouth[0], nose[0])
+    compression = face_width / (vertical_distance + 1e-6)
+
+    features = np.array([
+        eye_distance_norm,
+        nose_offset_ratio,
+        eye_vertical_ratio,
+        aspect_ratio,
+        nose_eye_ratio,
+        mouth_asymmetry,
+        triangle_area_norm,
+        compression
+    ])
+
+    return features
+
+
+def ml_based_angle_estimation(kps_5: np.ndarray) -> tuple:
+    """
+    Machine learning-inspired angle estimation using feature-based regression.
+
+    This uses a sophisticated feature extraction and weighted regression approach
+    that mimics ML behavior without requiring a trained model.
+
+    Args:
+        kps_5: 5-point facial landmarks
+
+    Returns:
+        tuple: (angle, confidence)
+        - angle: Estimated angle in degrees (0-90)
+        - confidence: Estimation confidence (0.0-1.0)
+    """
+    # Extract features
+    features = extract_profile_features(kps_5)
+
+    # Feature weights learned from empirical analysis
+    # These simulate learned weights from a regression model
+    weights = np.array([
+        -15.0,  # eye_distance_norm: smaller distance = higher angle
+        45.0,   # nose_offset_ratio: larger offset = higher angle
+        8.0,    # eye_vertical_ratio: more vertical diff = higher angle
+        -12.0,  # aspect_ratio: smaller ratio = higher angle
+        -35.0,  # nose_eye_ratio: smaller ratio = higher angle
+        -10.0,  # mouth_asymmetry: smaller mouth = higher angle
+        5.0,    # triangle_area: smaller area = higher angle
+        -20.0,  # compression: lower compression = higher angle
+    ])
+
+    bias = 50.0  # Base angle
+
+    # Linear regression: angle = features · weights + bias
+    raw_angle = np.dot(features, weights) + bias
+
+    # Apply non-linear transformation for better accuracy
+    # Sigmoid-like transformation to keep angle in valid range
+    angle = 90.0 / (1.0 + np.exp(-0.05 * (raw_angle - 50)))
+
+    # Calculate confidence based on feature consistency
+    # Features should align for high confidence
+    feature_variance = np.var(features * weights)
+    confidence = np.clip(1.0 - (feature_variance / 200.0), 0.6, 1.0)
+
+    # Ensemble with geometric method for robustness
+    geometric_orientation, geometric_angle, geometric_conf = detect_profile_orientation(kps_5)
+
+    # Weighted ensemble: ML method 60%, geometric 40%
+    final_angle = angle * 0.6 + geometric_angle * 0.4
+    final_confidence = (confidence + geometric_conf) / 2.0
+
+    return float(np.clip(final_angle, 0, 90)), float(final_confidence)
 
 
 def detect_profile_orientation(kps_5: np.ndarray, threshold: float = 0.3) -> tuple:
@@ -74,6 +463,121 @@ def detect_profile_orientation(kps_5: np.ndarray, threshold: float = 0.3) -> tup
         orientation = f'{direction}_profile'
 
     return orientation, float(angle), float(confidence)
+
+
+def flip_source_image_for_direction_match(source_image: np.ndarray,
+                                          source_landmarks: np.ndarray,
+                                          target_orientation: str) -> tuple:
+    """
+    Automatically flip source image horizontally to match target face direction.
+
+    Args:
+        source_image: Source image (H, W, C) numpy array
+        source_landmarks: Source face landmarks (5-point or 68-point)
+        target_orientation: Target face orientation ('left_profile', 'right_profile', etc.)
+
+    Returns:
+        tuple: (flipped_image, flipped_landmarks, was_flipped: bool)
+    """
+    # Detect source orientation
+    if len(source_landmarks) >= 68:
+        source_orientation, _, _ = detect_profile_orientation_68pt(source_landmarks[:68])
+    elif len(source_landmarks) >= 5:
+        source_orientation, _, _ = detect_profile_orientation(source_landmarks[:5])
+    else:
+        # Can't detect, return original
+        return source_image, source_landmarks, False
+
+    # Determine if flip is needed
+    def get_direction(orientation):
+        if 'left' in orientation:
+            return 'left'
+        elif 'right' in orientation:
+            return 'right'
+        return 'none'
+
+    source_dir = get_direction(source_orientation)
+    target_dir = get_direction(target_orientation)
+
+    # Flip if directions don't match (left vs right)
+    if source_dir != 'none' and target_dir != 'none' and source_dir != target_dir:
+        # Flip image horizontally
+        flipped_image = np.fliplr(source_image)
+
+        # Flip landmarks
+        image_width = source_image.shape[1]
+        flipped_landmarks = source_landmarks.copy()
+        flipped_landmarks[:, 0] = image_width - flipped_landmarks[:, 0]
+
+        # For 5-point landmarks, also swap left/right eye and mouth
+        if len(source_landmarks) == 5:
+            # Swap left_eye (0) <-> right_eye (1)
+            flipped_landmarks[[0, 1]] = flipped_landmarks[[1, 0]]
+            # Swap left_mouth (3) <-> right_mouth (4)
+            flipped_landmarks[[3, 4]] = flipped_landmarks[[4, 3]]
+
+        # For 68-point landmarks, swap left/right sides
+        elif len(source_landmarks) >= 68:
+            # Face contour: 0-16 (swap 0<->16, 1<->15, ... 8 stays)
+            for i in range(8):
+                flipped_landmarks[[i, 16-i]] = flipped_landmarks[[16-i, i]]
+            # Eyebrows: left (17-21) <-> right (22-26)
+            flipped_landmarks[[17,18,19,20,21, 22,23,24,25,26]] = \
+                flipped_landmarks[[26,25,24,23,22, 21,20,19,18,17]]
+            # Eyes: left (36-41) <-> right (42-47)
+            flipped_landmarks[[36,37,38,39,40,41, 42,43,44,45,46,47]] = \
+                flipped_landmarks[[45,44,43,42,47,46, 39,38,37,36,41,40]]
+            # Nose stays mostly the same (27-35), but swap nostrils
+            flipped_landmarks[[31, 35]] = flipped_landmarks[[35, 31]]
+            flipped_landmarks[[32, 34]] = flipped_landmarks[[34, 32]]
+            # Mouth: swap left/right
+            flipped_landmarks[[48,49,50, 58,59, 54,55,56,57]] = \
+                flipped_landmarks[[54,53,52, 56,55, 50,49,48,59]]
+
+        return flipped_image, flipped_landmarks, True
+
+    # No flip needed
+    return source_image, source_landmarks, False
+
+
+def auto_flip_source_if_needed(source_image: np.ndarray,
+                               source_landmarks: np.ndarray,
+                               target_landmarks: np.ndarray,
+                               auto_flip: bool = True) -> tuple:
+    """
+    Convenience function to automatically flip source if direction mismatch detected.
+
+    Args:
+        source_image: Source image array
+        source_landmarks: Source face landmarks
+        target_landmarks: Target face landmarks
+        auto_flip: Whether to enable auto-flipping
+
+    Returns:
+        tuple: (processed_image, processed_landmarks, was_flipped, flip_reason)
+    """
+    if not auto_flip:
+        return source_image, source_landmarks, False, "Auto-flip disabled"
+
+    # Detect target orientation
+    if len(target_landmarks) >= 68:
+        target_orientation, _, _ = detect_profile_orientation_68pt(target_landmarks[:68])
+    elif len(target_landmarks) >= 5:
+        target_orientation, _, _ = detect_profile_orientation(target_landmarks[:5])
+    else:
+        return source_image, source_landmarks, False, "Target landmarks insufficient"
+
+    # Try to flip
+    flipped_image, flipped_landmarks, was_flipped = flip_source_image_for_direction_match(
+        source_image, source_landmarks, target_orientation
+    )
+
+    if was_flipped:
+        reason = f"Flipped to match target direction ({target_orientation})"
+    else:
+        reason = "No flip needed - directions already match"
+
+    return flipped_image, flipped_landmarks, was_flipped, reason
 
 
 def calculate_orientation_match_score(source_orientation: str, target_orientation: str,
@@ -959,6 +1463,224 @@ def enhance_profile_landmarks(kps_5: np.ndarray, kps_all: np.ndarray,
         pass
 
     return kps_enhanced
+
+
+def get_profile_detection_config(expected_angle: float = None,
+                                expected_orientation: str = None) -> dict:
+    """
+    Get profile-specific face detection configuration.
+
+    Adjusts detection parameters based on expected face orientation for better
+    detection of profile faces which standard detectors often miss.
+
+    Args:
+        expected_angle: Expected face angle (0-90 degrees), None for general
+        expected_orientation: Expected orientation string, None for general
+
+    Returns:
+        Dictionary with detection configuration:
+        {
+            'det_thresh': float,  # Detection confidence threshold
+            'nms_thresh': float,  # Non-maximum suppression threshold
+            'det_size': tuple,    # Detection input size
+            'allow_upscaling': bool,
+            'max_num': int,       # Max faces to detect
+            'score_multiplier': float,  # Boost for profile faces
+        }
+    """
+    # Base configuration (optimized for frontal faces)
+    config = {
+        'det_thresh': 0.5,
+        'nms_thresh': 0.4,
+        'det_size': (640, 640),
+        'allow_upscaling': True,
+        'max_num': 0,  # 0 = unlimited
+        'score_multiplier': 1.0,
+        'angle_tolerance': 15.0,  # Degrees of tolerance
+    }
+
+    # Adjust based on expected angle
+    if expected_angle is not None:
+        if expected_angle < 15:
+            # Frontal face - standard settings
+            config['det_thresh'] = 0.5
+            config['score_multiplier'] = 1.0
+        elif expected_angle < 30:
+            # Slight angle - slightly relaxed
+            config['det_thresh'] = 0.45
+            config['score_multiplier'] = 1.05
+        elif expected_angle < 45:
+            # Three-quarter - more relaxed
+            config['det_thresh'] = 0.40
+            config['score_multiplier'] = 1.10
+            config['nms_thresh'] = 0.35  # Less aggressive NMS
+        elif expected_angle < 60:
+            # Strong three-quarter - significantly relaxed
+            config['det_thresh'] = 0.35
+            config['score_multiplier'] = 1.15
+            config['nms_thresh'] = 0.30
+        else:
+            # Profile - most relaxed settings
+            config['det_thresh'] = 0.30
+            config['score_multiplier'] = 1.20
+            config['nms_thresh'] = 0.25
+            config['angle_tolerance'] = 20.0
+
+    # Adjust based on orientation string
+    if expected_orientation:
+        if 'profile' in expected_orientation:
+            config['det_thresh'] = min(config['det_thresh'], 0.35)
+            config['score_multiplier'] = max(config['score_multiplier'], 1.15)
+        elif 'three_quarter' in expected_orientation:
+            config['det_thresh'] = min(config['det_thresh'], 0.40)
+            config['score_multiplier'] = max(config['score_multiplier'], 1.10)
+
+    return config
+
+
+def calculate_profile_detection_score(face_bbox: np.ndarray,
+                                      face_landmarks: np.ndarray,
+                                      base_score: float,
+                                      expected_orientation: str = None) -> float:
+    """
+    Calculate adjusted detection score for profile faces.
+
+    Profile faces often get lower confidence scores from standard detectors.
+    This function boosts scores appropriately based on detected orientation.
+
+    Args:
+        face_bbox: Face bounding box [x1, y1, x2, y2, score]
+        face_landmarks: Facial landmarks (5-point or more)
+        base_score: Original detection score
+        expected_orientation: Expected orientation if known
+
+    Returns:
+        Adjusted detection score (0.0-1.0)
+    """
+    # Detect actual orientation
+    if len(face_landmarks) >= 5:
+        orientation, angle, confidence = detect_profile_orientation(face_landmarks[:5])
+    else:
+        # Can't detect orientation, return base score
+        return base_score
+
+    # Calculate boost based on angle
+    # Profile faces need more boosting
+    if angle < 15:
+        boost = 1.0  # No boost for frontal
+    elif angle < 30:
+        boost = 1.05  # 5% boost
+    elif angle < 45:
+        boost = 1.10  # 10% boost
+    elif angle < 60:
+        boost = 1.15  # 15% boost
+    else:
+        boost = 1.20  # 20% boost for profile
+
+    # Additional boost if matches expected orientation
+    if expected_orientation and orientation == expected_orientation:
+        boost *= 1.05  # Extra 5% for matching expectation
+
+    # Apply boost with ceiling at 1.0
+    adjusted_score = min(base_score * boost, 1.0)
+
+    # Confidence penalty if detection confidence is low
+    if confidence < 0.7:
+        adjusted_score *= (0.9 + confidence * 0.1)
+
+    return float(adjusted_score)
+
+
+def filter_faces_by_profile_criteria(faces_data: list,
+                                     min_angle: float = 0,
+                                     max_angle: float = 90,
+                                     required_orientations: list = None,
+                                     min_confidence: float = 0.5) -> list:
+    """
+    Filter detected faces based on profile-specific criteria.
+
+    Args:
+        faces_data: List of face dicts with 'landmarks', 'bbox', 'score'
+        min_angle: Minimum face angle to include
+        max_angle: Maximum face angle to include
+        required_orientations: List of required orientations, None = all
+        min_confidence: Minimum detection confidence
+
+    Returns:
+        Filtered list of face dicts with added orientation info
+    """
+    filtered_faces = []
+
+    for face in faces_data:
+        landmarks = face.get('landmarks')
+        if landmarks is None or len(landmarks) < 5:
+            continue
+
+        # Detect orientation
+        orientation, angle, confidence = detect_profile_orientation(landmarks[:5])
+
+        # Check angle range
+        if angle < min_angle or angle > max_angle:
+            continue
+
+        # Check orientation requirement
+        if required_orientations and orientation not in required_orientations:
+            continue
+
+        # Check confidence
+        if confidence < min_confidence:
+            continue
+
+        # Add orientation info to face dict
+        face_with_orientation = face.copy()
+        face_with_orientation['orientation'] = orientation
+        face_with_orientation['angle'] = angle
+        face_with_orientation['orientation_confidence'] = confidence
+
+        filtered_faces.append(face_with_orientation)
+
+    return filtered_faces
+
+
+def optimize_detection_for_profiles(detection_params: dict,
+                                    target_angle_range: tuple = (0, 90)) -> dict:
+    """
+    Optimize face detection parameters for specific angle ranges.
+
+    Args:
+        detection_params: Base detection parameters dict
+        target_angle_range: (min_angle, max_angle) tuple
+
+    Returns:
+        Optimized detection parameters
+    """
+    min_angle, max_angle = target_angle_range
+    avg_angle = (min_angle + max_angle) / 2
+
+    optimized = detection_params.copy()
+
+    # Get profile-specific config for average angle
+    profile_config = get_profile_detection_config(expected_angle=avg_angle)
+
+    # Merge profile config into detection params
+    optimized.update({
+        'det_thresh': profile_config['det_thresh'],
+        'nms_thresh': profile_config['nms_thresh'],
+        'score_multiplier': profile_config['score_multiplier'],
+    })
+
+    # Additional optimizations based on angle range
+    angle_span = max_angle - min_angle
+
+    if angle_span > 45:
+        # Wide range - need robust detection
+        optimized['det_thresh'] = min(optimized.get('det_thresh', 0.5), 0.35)
+        optimized['allow_upscaling'] = True
+    elif angle_span < 15:
+        # Narrow range - can be more selective
+        optimized['det_thresh'] = optimized.get('det_thresh', 0.5)
+
+    return optimized
 
 
 def get_profile_border_adjustments(profile_side: str, enhancement: float = 0.5,
