@@ -1,5 +1,85 @@
 # Profile Mode - Technical Documentation
 
+## Version 4.0 Enhancements
+
+**Major Updates**: AI-Powered Profile Intelligence & Production-Ready Detection
+
+### What's New in v4.0
+
+#### 1. ML-Based Angle Estimation
+
+**Feature Extraction System**
+- `extract_profile_features()` - Extracts 8-dimensional feature vector:
+  1. Eye distance ratio (normalized to face size)
+  2. Nose offset ratio (nose position vs eye center)
+  3. Eye vertical alignment (tilt detection)
+  4. Face aspect ratio (vertical vs horizontal span)
+  5. Nose-eye distance ratio (asymmetry detection)
+  6. Mouth asymmetry (profile compression indicator)
+  7. Eye-mouth triangle area (face shape analysis)
+  8. Horizontal face compression (profile characteristic)
+
+**ML-Inspired Regression**
+- `ml_based_angle_estimation()` - Machine learning-inspired angle predictor
+- Weighted linear regression with learned feature weights
+- Non-linear sigmoid transformation for boundary handling
+- Ensemble method: ML 60% + Geometric 40% for robustness
+- Confidence scoring based on feature variance
+- Returns: (angle, confidence) tuple with improved accuracy
+
+#### 2. Automatic Source Image Flipping
+
+**Core Functions**
+- `flip_source_image_for_direction_match()` - Automatically flips source to match target direction
+- `auto_flip_source_if_needed()` - Convenience wrapper with auto-detection
+
+**Implementation**: Horizontal flip with proper landmark transformation (5-point and 68-point supported)
+
+#### 3. Profile-Specific Face Detection Models
+
+**Detection Configuration**
+- `get_profile_detection_config()` - Returns angle-optimized detection parameters
+  - Frontal (0-15°): det_thresh=0.5, score_mult=1.0
+  - Three-quarter (30-45°): det_thresh=0.40, score_mult=1.10
+  - Profile (60-90°): det_thresh=0.30, score_mult=1.20
+
+**Detection Score Adjustment**
+- `calculate_profile_detection_score()` - Boosts profile face scores up to 20%
+- `filter_faces_by_profile_criteria()` - Filter faces by angle/orientation
+- `optimize_detection_for_profiles()` - Tune detection params for angle range
+
+#### 4. Real-Time UI Warning System
+
+**Warning Framework**
+- `WarningLevel` enum: INFO, LOW, MEDIUM, HIGH, CRITICAL
+- `ProfileWarning` dataclass: Structured warning with metadata
+- `generate_profile_warnings()` - Generates actionable warnings with auto-fix buttons
+- `format_warning_for_display()` - HTML, Markdown, and Text formatting
+- `get_warning_summary()` - Badge/indicator data
+
+### API Summary (v4.0)
+
+```python
+# ML-Based Angle Estimation
+extract_profile_features(kps_5) -> np.ndarray  # 8D feature vector
+ml_based_angle_estimation(kps_5) -> tuple  # (angle, confidence)
+
+# Automatic Flipping
+flip_source_image_for_direction_match(source_image, source_landmarks, target_orientation) -> tuple
+auto_flip_source_if_needed(source_image, source_landmarks, target_landmarks) -> tuple
+
+# Profile-Specific Detection
+get_profile_detection_config(expected_angle, expected_orientation) -> dict
+calculate_profile_detection_score(face_bbox, face_landmarks, base_score) -> float
+filter_faces_by_profile_criteria(faces_data, min_angle, max_angle, required_orientations) -> list
+optimize_detection_for_profiles(detection_params, target_angle_range) -> dict
+
+# Real-Time Warnings
+generate_profile_warnings(source_orientation, source_angle, target_orientation, target_angle) -> List[ProfileWarning]
+format_warning_for_display(warning, format_type) -> str
+get_warning_summary(warnings) -> dict
+```
+
 ## Version 3.0 Enhancements
 
 **Major Updates**: Advanced Profile Features & Intelligence

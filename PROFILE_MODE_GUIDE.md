@@ -245,7 +245,41 @@ Applies targeted color transfer:
 
 ## Recent Enhancements
 
-### v3.0 - Advanced Profile Features (Latest)
+### v4.0 - AI-Powered Profile Intelligence (Latest)
+
+**ML-Based Angle Estimation**
+- ✓ 8-dimensional feature extraction from facial landmarks
+- ✓ Machine learning-inspired regression model
+- ✓ Ensemble method (ML 60% + geometric 40%)
+- ✓ Higher accuracy than pure geometric methods
+- ✓ Confidence scoring based on feature consistency
+
+**Automatic Source Image Flipping**
+- ✓ Intelligent direction mismatch detection
+- ✓ Automatic horizontal flipping when needed
+- ✓ Proper landmark transformation (5-point and 68-point)
+- ✓ Left/right side swapping for accurate alignment
+- ✓ One-click auto-fix for direction mismatches
+
+**Profile-Specific Face Detection**
+- ✓ Adaptive detection thresholds based on angle (0.5 for frontal, 0.3 for profile)
+- ✓ Profile-aware NMS (non-maximum suppression) tuning
+- ✓ Detection score boosting for profile faces (up to 20%)
+- ✓ Confidence-based score adjustment
+- ✓ Angle-range optimization (narrow vs wide)
+- ✓ Profile face filtering and ranking
+
+**Real-Time UI Warnings**
+- ✓ 5 warning severity levels (Info, Low, Medium, High, Critical)
+- ✓ Instant mismatch detection with actionable recommendations
+- ✓ Auto-fix buttons for common issues
+- ✓ Low confidence warnings
+- ✓ Extreme angle notifications
+- ✓ Three-quarter view optimization suggestions
+- ✓ HTML, Markdown, and Text formatting
+- ✓ Warning summary badges for quick overview
+
+### v3.0 - Advanced Profile Features
 
 **Profile Presets**
 - ✓ 6 quick presets for common use cases
@@ -314,6 +348,6 @@ For issues, suggestions, or questions about Profile Mode:
 
 ---
 
-**Version**: 3.0 (Advanced Profile Features)
+**Version**: 4.0 (AI-Powered Profile Intelligence)
 **Last Updated**: 2025-10-30
 **Author**: Claude AI Assistant
