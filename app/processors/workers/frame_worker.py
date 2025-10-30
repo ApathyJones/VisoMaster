@@ -209,7 +209,14 @@ class FrameWorker(threading.Thread):
         # Profile Mode: Detect and adjust for profile faces
         if parameters.get('ProfileModeToggle', False):
             profile_side_selection = parameters.get('ProfileSideSelection', 'Auto')
-            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+
+            # Check if a preset is selected
+            preset_selection = parameters.get('ProfilePresetSelection', 'Custom')
+            if preset_selection != 'Custom':
+                preset_settings = profile_util.get_profile_preset_settings(preset_selection)
+                user_enhancement = preset_settings['enhancement'] / 100.0
+            else:
+                user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
 
             if profile_side_selection == 'Auto':
                 # Auto-detect profile orientation with angle estimation
@@ -712,7 +719,14 @@ class FrameWorker(threading.Thread):
 
         # Apply profile-specific mask if in profile mode
         if parameters.get('ProfileModeToggle', False) and profile_side and profile_side != 'frontal':
-            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            # Check if a preset is selected
+            preset_selection = parameters.get('ProfilePresetSelection', 'Custom')
+            if preset_selection != 'Custom':
+                preset_settings = profile_util.get_profile_preset_settings(preset_selection)
+                user_enhancement = preset_settings['enhancement'] / 100.0
+            else:
+                user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+
             # Calculate adaptive enhancement based on angle
             enhancement = profile_util.calculate_adaptive_enhancement(profile_angle, user_enhancement, profile_side)
             profile_mask = profile_util.create_profile_mask(profile_side, enhancement, self.models_processor.device, profile_angle)
@@ -827,7 +841,14 @@ class FrameWorker(threading.Thread):
 
         # Apply profile-specific color correction if in profile mode
         if parameters.get('ProfileModeToggle', False) and profile_side and profile_side != 'frontal':
-            user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+            # Check if a preset is selected
+            preset_selection = parameters.get('ProfilePresetSelection', 'Custom')
+            if preset_selection != 'Custom':
+                preset_settings = profile_util.get_profile_preset_settings(preset_selection)
+                user_enhancement = preset_settings['enhancement'] / 100.0
+            else:
+                user_enhancement = parameters.get('ProfileEnhancementSlider', 50) / 100.0
+
             # Calculate adaptive enhancement based on angle
             enhancement = profile_util.calculate_adaptive_enhancement(profile_angle, user_enhancement, profile_side)
             swap = profile_util.apply_profile_color_correction(swap, original_face_512, profile_side, enhancement, profile_angle)

@@ -56,6 +56,18 @@ Choose from:
 
 This ensures optimal processing for any face angle with a single slider!
 
+#### Profile Preset Selection (NEW in v3.0)
+Quick presets for common use cases:
+- **Custom**: Manual control using the Enhancement Slider
+- **Natural Portrait** (40): Balanced enhancement for most portrait photos
+- **Headshot** (30): Conservative settings for professional headshots
+- **Three-Quarter Enhanced** (55): Optimized for 30-45° three-quarter views
+- **Dramatic Profile** (75): Strong adjustments for artistic profile shots
+- **Subtle Correction** (25): Minimal enhancement, natural look
+- **Extreme Profile** (85): Maximum correction for 70-90° extreme profiles
+
+**Tip**: Start with a preset that matches your use case, then switch to "Custom" if you need fine-tuning.
+
 ### 3. Select a Profile Source Image
 
 **Important**: For best results, use a source image that matches the profile orientation:
@@ -231,9 +243,54 @@ Applies targeted color transfer:
 - Transfers color statistics
 - Blends based on enhancement strength
 
-## Recent Enhancements (v2.0)
+## Recent Enhancements
 
-**NEW**: Three-Quarter View Support & Adaptive Enhancement
+### v3.0 - Advanced Profile Features (Latest)
+
+**Profile Presets**
+- ✓ 6 quick presets for common use cases
+- ✓ One-click optimization for different scenarios
+- ✓ Instant parameter configuration
+
+**Profile Mismatch Warning System**
+- ✓ Automatic detection of source/target orientation mismatches
+- ✓ Severity classification (low, medium, high)
+- ✓ Smart recommendations for better results
+- ✓ Angle difference analysis
+
+**Per-Side Face Restoration**
+- ✓ Different restoration strategies for visible vs occluded sides
+- ✓ Stronger restoration on visible side
+- ✓ Lighter restoration on occluded side to avoid artifacts
+- ✓ Smooth transition between sides
+
+**Profile-Aware Color Grading**
+- ✓ Advanced per-side color analysis
+- ✓ Cross-fill lighting from visible to occluded side
+- ✓ More realistic color transitions
+- ✓ Configurable cross-fill strength
+
+**Smart Source Matching**
+- ✓ Match score calculation between source and target orientations
+- ✓ Automatic ranking of multiple source faces
+- ✓ Orientation compatibility analysis
+- ✓ Best source face recommendation
+
+**Multi-Face Profile Handling**
+- ✓ Per-face profile settings suggestions
+- ✓ Mixed orientation scene detection
+- ✓ Automatic parameter suggestions for each face
+- ✓ Group photo optimization
+
+**68-Point Landmark Detection**
+- ✓ Enhanced accuracy using 68-point facial landmarks
+- ✓ Jawline curvature analysis
+- ✓ Eye visibility analysis
+- ✓ Face contour asymmetry detection
+- ✓ Automatic fallback to 5-point landmarks
+
+### v2.0 - Three-Quarter View Support & Adaptive Enhancement
+
 - ✓ Automatic angle detection (0-90°)
 - ✓ Three-quarter view classification (15-45°)
 - ✓ Adaptive enhancement scaling based on angle
@@ -243,11 +300,10 @@ Applies targeted color transfer:
 ## Future Enhancements
 
 Potential future improvements:
-- Automatic source image orientation matching and warnings
-- 68-point landmark detection for improved accuracy
+- Real-time orientation mismatch warnings in UI
 - Profile-specific face detection models
-- Enhanced landmark prediction for occluded features
-- Per-side face restoration strategies
+- Machine learning-based angle estimation
+- Automatic source image flipping for direction matching
 
 ## Feedback and Support
 
@@ -258,6 +314,6 @@ For issues, suggestions, or questions about Profile Mode:
 
 ---
 
-**Version**: 2.0 (Three-Quarter View Support & Adaptive Enhancement)
-**Last Updated**: 2025-10-29
+**Version**: 3.0 (Advanced Profile Features)
+**Last Updated**: 2025-10-30
 **Author**: Claude AI Assistant

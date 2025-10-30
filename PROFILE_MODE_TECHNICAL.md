@@ -1,5 +1,69 @@
 # Profile Mode - Technical Documentation
 
+## Version 3.0 Enhancements
+
+**Major Updates**: Advanced Profile Features & Intelligence
+
+### What's New in v3.0
+
+1. **Profile Presets System**
+   - `get_profile_preset_settings(preset_name)` function
+   - 7 predefined presets with optimal settings
+   - Automatic parameter configuration
+   - Integration with Enhancement Slider
+
+2. **Profile Mismatch Detection**
+   - `check_profile_mismatch()` function analyzes source/target compatibility
+   - Returns severity classification (none/low/medium/high)
+   - Provides actionable recommendations
+   - Calculates angle differences and orientation compatibility
+
+3. **Smart Source Matching**
+   - `calculate_orientation_match_score()` scores source/target pairs (0.0-1.0)
+   - `rank_source_faces_by_orientation()` ranks multiple sources
+   - Weighted scoring: angle (50%), category (30%), direction (20%)
+   - Enables automatic best-source selection
+
+4. **Per-Side Face Restoration**
+   - `apply_per_side_restoration()` function
+   - Different restoration blend for visible (100%) vs occluded (70%) sides
+   - Smooth 5% transition zone between sides
+   - Prevents over-sharpening artifacts on occluded regions
+
+5. **Profile-Aware Color Grading**
+   - `apply_profile_aware_color_grading()` with cross-fill support
+   - Per-side color analysis and correction
+   - Cross-fill: visible side color influences occluded side (configurable 0-100%)
+   - More realistic lighting simulation
+
+6. **Multi-Face Profile Handling**
+   - `suggest_profile_settings_for_multi_face()` analyzes multiple faces
+   - `detect_mixed_orientation_scene()` detects mixed orientations
+   - Per-face setting recommendations
+   - Group photo optimization
+
+7. **68-Point Landmark Detection**
+   - `detect_profile_orientation_68pt()` for enhanced accuracy
+   - `detect_profile_with_best_available_landmarks()` auto-selects best method
+   - Analyzes jawline curvature, eye visibility, face contour
+   - Automatic fallback to 5-point landmarks
+
+### API Summary
+
+```python
+# New Functions in v3.0
+get_profile_preset_settings(preset_name: str) -> dict
+check_profile_mismatch(source_orientation, target_orientation, source_angle, target_angle) -> dict
+calculate_orientation_match_score(source_orientation, target_orientation, source_angle, target_angle) -> float
+rank_source_faces_by_orientation(source_faces_data: list, target_orientation, target_angle) -> list
+apply_per_side_restoration(face_tensor, profile_side, restoration_func, visible_blend=1.0, occluded_blend=0.7) -> Tensor
+apply_profile_aware_color_grading(swap, original, profile_side, enhancement, angle, cross_fill_strength=0.3) -> Tensor
+suggest_profile_settings_for_multi_face(faces_data: list) -> list
+detect_mixed_orientation_scene(faces_data: list) -> dict
+detect_profile_orientation_68pt(kps_68: np.ndarray, threshold=0.3) -> tuple
+detect_profile_with_best_available_landmarks(kps_5=None, kps_68=None, threshold=0.3) -> tuple
+```
+
 ## Version 2.0 Enhancements
 
 **Major Updates**: Three-Quarter View Support & Adaptive Enhancement

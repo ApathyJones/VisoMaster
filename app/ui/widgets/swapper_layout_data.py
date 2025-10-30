@@ -54,6 +54,15 @@ SWAPPER_LAYOUT_DATA: LayoutDictTypes = {
             'default': False,
             'help': 'Enable profile face swapping mode with adaptive enhancement. Supports frontal (0°), three-quarter (15-45°), and full profile (45-90°) faces. Auto-detects face angle and adapts processing accordingly. Use a source image with similar orientation for best results.',
         },
+        'ProfilePresetSelection': {
+            'level': 2,
+            'label': 'Profile Preset',
+            'options': ['Custom', 'Natural Portrait', 'Headshot', 'Three-Quarter Enhanced', 'Dramatic Profile', 'Subtle Correction', 'Extreme Profile'],
+            'default': 'Custom',
+            'parentToggle': 'ProfileModeToggle',
+            'requiredToggleValue': True,
+            'help': 'Quick presets for common use cases. Natural Portrait (40): balanced for most portraits. Headshot (30): conservative for professional headshots. Three-Quarter Enhanced (55): optimized for 30-45° angles. Dramatic Profile (75): strong adjustments for artistic profiles. Subtle Correction (25): minimal enhancement. Extreme Profile (85): maximum correction for 70-90° angles. Select Custom to manually adjust settings.',
+        },
         'ProfileSideSelection': {
             'level': 2,
             'label': 'Profile Side',
