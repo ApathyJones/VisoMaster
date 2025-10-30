@@ -2,7 +2,7 @@
 
 ## Overview
 
-VisoMaster now includes a specialized **Profile Mode** for swapping faces that are shown in profile (side view) rather than facing forward. This mode addresses the unique challenges of profile face swapping and provides enhanced results for side-facing subjects.
+VisoMaster now includes a specialized **Profile Mode** with **Adaptive Enhancement** for swapping faces at any angle from frontal (0°) to full profile (90°). This mode automatically detects face orientation, estimates the rotation angle, and adapts all processing parameters accordingly for optimal results.
 
 ## Why Profile Mode?
 
@@ -29,17 +29,44 @@ Once Profile Mode is enabled, you'll see two additional options:
 
 #### Profile Side Selection
 Choose from:
-- **Auto** (Recommended): Automatically detects which direction the profile is facing
-- **Left Profile**: Manually specify that the face is facing left (left side visible)
-- **Right Profile**: Manually specify that the face is facing right (right side visible)
+- **Auto** (Recommended): Automatically detects face angle (0-90°) and orientation
+  - Frontal: 0-15° rotation
+  - Three-Quarter: 15-45° rotation
+  - Profile: 45-90° rotation
+- **Left Profile**: Manually specify full left profile (assumes 75° angle)
+- **Right Profile**: Manually specify full right profile (assumes 75° angle)
+- **Three-Quarter Left**: Manually specify left three-quarter view (assumes 35° angle)
+- **Three-Quarter Right**: Manually specify right three-quarter view (assumes 35° angle)
 
-**Tip**: Use "Auto" unless you notice detection issues, then manually select the correct side.
+**Tip**: Use "Auto" for intelligent detection. Manual options are available if detection is incorrect or for creative control.
 
 #### Profile Enhancement Slider (0-100)
 - **Default**: 50
-- **Lower values (0-30)**: Subtle profile adjustments, more natural blending
-- **Medium values (30-70)**: Balanced enhancement, recommended for most cases
-- **Higher values (70-100)**: Aggressive profile optimization, best for extreme profiles
+- **Adaptive Behavior**: The slider now acts as a *base strength* that automatically scales based on detected angle:
+  - **Frontal faces (0-15°)**: 30% of slider value (minimal adjustments)
+  - **Slight angles (15-30°)**: 50% of slider value (subtle enhancement)
+  - **Three-quarter (30-45°)**: 75% of slider value (moderate enhancement)
+  - **Strong three-quarter (45-60°)**: 90% of slider value (significant enhancement)
+  - **Profile (60-90°)**: 100% of slider value (maximum enhancement)
+
+**Example**: Setting the slider to 50 will apply:
+- Frontal face: 15 effective strength
+- Three-quarter: 37.5 effective strength
+- Full profile: 50 effective strength
+
+This ensures optimal processing for any face angle with a single slider!
+
+#### Profile Preset Selection (NEW in v3.0)
+Quick presets for common use cases:
+- **Custom**: Manual control using the Enhancement Slider
+- **Natural Portrait** (40): Balanced enhancement for most portrait photos
+- **Headshot** (30): Conservative settings for professional headshots
+- **Three-Quarter Enhanced** (55): Optimized for 30-45° three-quarter views
+- **Dramatic Profile** (75): Strong adjustments for artistic profile shots
+- **Subtle Correction** (25): Minimal enhancement, natural look
+- **Extreme Profile** (85): Maximum correction for 70-90° extreme profiles
+
+**Tip**: Start with a preset that matches your use case, then switch to "Custom" if you need fine-tuning.
 
 ### 3. Select a Profile Source Image
 
@@ -64,34 +91,42 @@ Profile Mode works with all existing VisoMaster features:
 
 ## Technical Features
 
-### Automatic Profile Detection
+### Automatic Profile Detection with Angle Estimation
 
 Profile Mode includes intelligent detection that:
 - Analyzes the 5-point facial landmarks
 - Calculates eye spacing and nose position
-- Determines profile orientation (left, right, or frontal)
-- Applies appropriate adjustments automatically
+- **Estimates rotation angle** (0-90 degrees from frontal)
+- Determines orientation (frontal, three-quarter left/right, or full profile left/right)
+- **Calculates confidence score** for detection accuracy
+- Applies angle-appropriate adjustments automatically
 
 ### Profile-Specific Enhancements
 
-1. **Keypoint Adjustment**
+All enhancements now **scale adaptively** based on detected angle:
+
+1. **Adaptive Keypoint Adjustment**
    - Compensates for occluded facial features
    - Estimates better positions for barely-visible landmarks
-   - Improves alignment for profile views
+   - **Scales adjustment strength** based on rotation angle (more angle = more adjustment)
+   - Supports frontal, three-quarter, and full profile views
 
-2. **Asymmetric Masking**
+2. **Adaptive Asymmetric Masking**
    - Creates elliptical masks that favor the visible side
+   - **Asymmetry scales with angle** (frontal faces get symmetric masks)
    - Reduces artifacts on the occluded side
    - Provides smoother blending at face boundaries
 
-3. **Border Optimization**
-   - Automatically adjusts border masks for profile faces
+3. **Adaptive Border Optimization**
+   - Automatically adjusts border masks based on face angle
    - Extends borders on the occluded side for better blending
    - Reduces borders on the visible side to preserve detail
+   - **Border extension scales with rotation angle**
 
-4. **Profile Color Correction**
+4. **Adaptive Profile Color Correction**
    - Analyzes color statistics from the visible side only
    - Applies side-specific color matching
+   - **Correction strength scales with angle**
    - Accounts for profile lighting differences
 
 ## Tips for Best Results
@@ -208,13 +243,67 @@ Applies targeted color transfer:
 - Transfers color statistics
 - Blends based on enhancement strength
 
+## Recent Enhancements
+
+### v3.0 - Advanced Profile Features (Latest)
+
+**Profile Presets**
+- ✓ 6 quick presets for common use cases
+- ✓ One-click optimization for different scenarios
+- ✓ Instant parameter configuration
+
+**Profile Mismatch Warning System**
+- ✓ Automatic detection of source/target orientation mismatches
+- ✓ Severity classification (low, medium, high)
+- ✓ Smart recommendations for better results
+- ✓ Angle difference analysis
+
+**Per-Side Face Restoration**
+- ✓ Different restoration strategies for visible vs occluded sides
+- ✓ Stronger restoration on visible side
+- ✓ Lighter restoration on occluded side to avoid artifacts
+- ✓ Smooth transition between sides
+
+**Profile-Aware Color Grading**
+- ✓ Advanced per-side color analysis
+- ✓ Cross-fill lighting from visible to occluded side
+- ✓ More realistic color transitions
+- ✓ Configurable cross-fill strength
+
+**Smart Source Matching**
+- ✓ Match score calculation between source and target orientations
+- ✓ Automatic ranking of multiple source faces
+- ✓ Orientation compatibility analysis
+- ✓ Best source face recommendation
+
+**Multi-Face Profile Handling**
+- ✓ Per-face profile settings suggestions
+- ✓ Mixed orientation scene detection
+- ✓ Automatic parameter suggestions for each face
+- ✓ Group photo optimization
+
+**68-Point Landmark Detection**
+- ✓ Enhanced accuracy using 68-point facial landmarks
+- ✓ Jawline curvature analysis
+- ✓ Eye visibility analysis
+- ✓ Face contour asymmetry detection
+- ✓ Automatic fallback to 5-point landmarks
+
+### v2.0 - Three-Quarter View Support & Adaptive Enhancement
+
+- ✓ Automatic angle detection (0-90°)
+- ✓ Three-quarter view classification (15-45°)
+- ✓ Adaptive enhancement scaling based on angle
+- ✓ Confidence scoring for detection accuracy
+- ✓ Manual three-quarter selection options
+
 ## Future Enhancements
 
 Potential future improvements:
-- Three-quarter view detection (between frontal and profile)
-- Automatic source image orientation matching
+- Real-time orientation mismatch warnings in UI
 - Profile-specific face detection models
-- Enhanced landmark prediction for occluded features
+- Machine learning-based angle estimation
+- Automatic source image flipping for direction matching
 
 ## Feedback and Support
 
@@ -225,6 +314,6 @@ For issues, suggestions, or questions about Profile Mode:
 
 ---
 
-**Version**: 1.0
-**Last Updated**: 2025-10-29
+**Version**: 3.0 (Advanced Profile Features)
+**Last Updated**: 2025-10-30
 **Author**: Claude AI Assistant
